@@ -1,465 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Editor Pro - Sound Engine</title>
-    <style>
-        :root {
-            --bg-color: #0f0f0f;
-            --panel-bg: #1a1a1a;
-            --panel-border: #2a2a2a;
-            --accent-color: #007acc;
-            --accent-hover: #005f9e;
-            --text-main: #efefef;
-            --text-muted: #aaaaaa;
-            --track-bg: #222222;
-            --clip-video: #2c5d8f;
-            --clip-audio: #2c8f5d;
-            --clip-stock: #6a4c93;
-            --clip-selected: #ffffff;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+<meta charset="UTF-8">
+<title>Maximus Video — Bonsai</title>
+<style>
+  body {
+    margin: 0;
+    background: #050505;
+    color: #eee;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  .container {
+    width: 900px;
+    background: #0b0b0f;
+    border: 1px solid #1a1a22;
+    border-radius: 16px;
+    padding: 20px;
+  }
 
-        body {
-            background-color: var(--bg-color); color: var(--text-main);
-            font-family: var(--font-family); height: 100vh;
-            display: flex; flex-direction: column; overflow: hidden;
-        }
+  .title {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
 
-        /* Layout */
-        .top-section { display: flex; height: 50%; border-bottom: 2px solid var(--panel-border); }
-        .panel { background-color: var(--panel-bg); border-right: 1px solid var(--panel-border); display: flex; flex-direction: column; }
-        
-        /* Library Tabs */
-        .library-tabs { display: flex; background: #252526; border-bottom: 1px solid var(--panel-border); }
-        .tab { flex: 1; padding: 10px; font-size: 11px; text-align: center; cursor: pointer; color: var(--text-muted); font-weight: bold; text-transform: uppercase; border-bottom: 2px solid transparent; }
-        .tab.active { color: var(--accent-color); border-bottom-color: var(--accent-color); background: var(--panel-bg); }
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 20px;
+  }
 
-        .panel-header {
-            padding: 10px; font-size: 12px; font-weight: bold;
-            border-bottom: 1px solid var(--panel-border); background-color: #252526;
-            display: flex; justify-content: space-between; align-items: center;
-        }
+  textarea {
+    width: 100%;
+    height: 120px;
+    background: #0f0f15;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 12px;
+    color: #eee;
+    font-size: 14px;
+    resize: vertical;
+  }
 
-        /* Assets Panel */
-        .assets-panel { width: 320px; min-width: 300px; }
-        .assets-container { flex: 1; overflow-y: auto; }
-        .assets-list { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .assets-list.list-view { display: flex; flex-direction: column; }
+  button {
+    margin-top: 14px;
+    padding: 10px 18px;
+    background: #4f6bff;
+    border: none;
+    border-radius: 999px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+  }
 
-        .asset-item {
-            background-color: var(--track-bg); border: 1px solid var(--panel-border);
-            border-radius: 6px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 5px;
-            transition: transform 0.1s, border-color 0.1s;
-        }
-        .asset-item:hover { border-color: var(--accent-color); transform: translateY(-2px); }
-        .asset-thumb { 
-            width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 4px; 
-            display: flex; align-items: center; justify-content: center; font-size: 20px;
-            overflow: hidden; position: relative;
-        }
+  button:hover {
+    filter: brightness(1.1);
+  }
 
-        .asset-name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-        .asset-meta { font-size: 9px; color: var(--text-muted); }
+  .status {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #aaa;
+  }
 
-        /* Preview Panel */
-        .preview-panel { flex: 1; display: flex; flex-direction: column; background-color: #000; }
-        .preview-container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
-        .preview-video { max-width: 100%; max-height: 100%; object-fit: contain; }
-        
-        #stock-canvas { position: absolute; width: 100%; height: 100%; object-fit: cover; display: none; }
-        
-        /* Audio Visualizer */
-        #audio-viz { position: absolute; bottom: 20px; left: 20px; right: 20px; height: 60px; pointer-events: none; opacity: 0.8; }
-
-        .preview-controls { height: 50px; background-color: var(--panel-bg); border-top: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; gap: 15px; }
-
-        /* Timeline */
-        .timeline-panel { flex: 1; display: flex; flex-direction: column; background-color: var(--panel-bg); }
-        .timeline-toolbar { height: 40px; border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; padding: 0 15px; gap: 15px; background-color: #252526; }
-        .timeline-body { flex: 1; display: flex; overflow: auto; position: relative; }
-        .track-headers { width: 100px; border-right: 1px solid var(--panel-border); background-color: var(--panel-bg); position: sticky; left: 0; z-index: 10; }
-        .track-header { height: 70px; border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; padding: 0 10px; font-size: 10px; color: var(--text-muted); font-weight: bold; }
-        .tracks-container { flex: 1; position: relative; background-image: linear-gradient(90deg, #2a2a2a 1px, transparent 1px); background-size: 100px 100%; min-width: 3000px; }
-        .time-ruler { height: 25px; border-bottom: 1px solid var(--panel-border); position: sticky; top: 0; background-color: var(--panel-bg); z-index: 5; display: flex; align-items: flex-end; font-size: 10px; color: var(--text-muted); }
-        .track { height: 70px; border-bottom: 1px solid var(--panel-border); position: relative; width: 100%; }
-        
-        .clip {
-            position: absolute; height: 50px; top: 10px; border-radius: 4px;
-            display: flex; align-items: center; justify-content: space-between;
-            overflow: hidden; cursor: pointer; border: 2px solid rgba(255,255,255,0.1);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .clip.video { background-color: var(--clip-video); }
-        .clip.audio { background-color: var(--clip-audio); }
-        .clip.stock { background-color: var(--clip-stock); }
-        .clip.selected { border-color: var(--clip-selected); z-index: 2; outline: 2px solid var(--accent-color); }
-        .clip-label { font-size: 10px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-
-        .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background-color: #ff4444; z-index: 20; pointer-events: none; }
-        .playhead::before { content: ''; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; background-color: #ff4444; border-radius: 50%; }
-
-        button { background-color: #333; color: var(--text-main); border: 1px solid #444; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
-        button:hover { background-color: #444; }
-        button.primary { background-color: var(--accent-color); border-color: var(--accent-color); color: white; }
-
-        /* Fix: Hide default file input completely */
-        #file-input { 
-            position: absolute;
-            width: 0.1px;
-            height: 0.1px;
-            opacity: 0;
-            overflow: hidden;
-            z-index: -1;
-        }
-
-        /* Animation Styles */
-        @keyframes scrollGrid { from { background-position: 0 0; } to { background-position: 0 40px; } }
-        .anim-grid { background-image: linear-gradient(var(--accent-color) 1px, transparent 1px), linear-gradient(90deg, var(--accent-color) 1px, transparent 1px); background-size: 20px 20px; animation: scrollGrid 2s linear infinite; }
-    </style>
+  canvas {
+    margin-top: 20px;
+    border-radius: 12px;
+    border: 1px solid #222;
+    background: black;
+    width: 100%;
+    height: 512px;
+  }
+</style>
 </head>
 <body>
 
-    <div class="top-section">
-        <div class="panel assets-panel">
-            <div class="library-tabs">
-                <div class="tab active" onclick="switchTab('user')">Media</div>
-                <div class="tab" onclick="switchTab('stock')">Motion & Sound</div>
-            </div>
+<div class="container">
+  <div class="title">Maximus Video</div>
+  <div class="subtitle">Bonsai WebGPU Animation Engine</div>
 
-            <div id="tab-user" class="assets-container">
-                <div class="panel-header">
-                    <span>Imported</span>
-                    <button id="btn-import">Upload</button>
-                    <!-- File input is now hidden with CSS to remove "Choose Files" text -->
-                    <input type="file" id="file-input" multiple accept="video/*,audio/*">
-                </div>
-                <div class="assets-list list-view" id="user-assets-list"></div>
-            </div>
+  <textarea id="prompt" placeholder="Describe your scene..."></textarea>
+  <button onclick="generate()">Generate</button>
 
-            <div id="tab-stock" class="assets-container" style="display:none;">
-                <div class="panel-header"><span>Animated Assets</span></div>
-                <div class="assets-list" id="stock-assets-list"></div>
-            </div>
-        </div>
+  <div class="status" id="status">Waiting…</div>
 
-        <div class="panel preview-panel">
-            <div class="preview-container" id="preview-container">
-                <canvas id="stock-canvas"></canvas>
-                <video id="preview-video" class="preview-video" playsinline></video>
-                <canvas id="audio-viz"></canvas>
-                <audio id="preview-audio"></audio>
-            </div>
-            <div class="preview-controls">
-                <button id="btn-play">▶ Play</button>
-                <span id="time-display" style="font-family: monospace; font-size: 14px;">00:00.0 / 05:00.0</span>
-            </div>
-        </div>
-    </div>
+  <canvas id="canvas" width="512" height="512"></canvas>
+</div>
 
-    <div class="timeline-panel">
-        <div class="timeline-toolbar">
-            <button id="btn-delete" disabled>🗑 Delete Clip</button>
-            <div style="flex:1"></div>
-            <span style="font-size:11px; color:#666">Click timeline to seek. Drag clips to move.</span>
-        </div>
-        
-        <div class="timeline-body">
-            <div class="track-headers">
-                <div class="time-ruler"></div>
-                <div class="track-header">Video</div>
-                <div class="track-header">Audio</div>
-            </div>
-            <div class="tracks-container" id="tracks-container">
-                <div class="time-ruler" id="ruler-ticks"></div>
-                <div class="playhead" id="playhead"></div>
-                <div class="track" id="video-track"></div>
-                <div class="track" id="audio-track"></div>
-            </div>
-        </div>
-    </div>
+<script>
+const BONSAI_API = "https://prism-ml-bonsai-demo.hf.space/run/text_to_bonsai";
 
-    <script>
-        const AppState = {
-            pixelsPerSecond: 60,
-            currentTime: 0,
-            playing: false,
-            duration: 300, 
-            selectedClipId: null,
-            nextId: 1,
-            assets: [], 
-            clips: [],
-            activeVideoSrc: null,
-            activeAudioSrc: null,
-            audioCtx: null,
-            synthNotes: [] 
-        };
+async function generate() {
+  const prompt = document.getElementById("prompt").value.trim();
+  const status = document.getElementById("status");
 
-        const DOM = {
-            userAssetsList: document.getElementById('user-assets-list'),
-            stockAssetsList: document.getElementById('stock-assets-list'),
-            fileInput: document.getElementById('file-input'),
-            btnImport: document.getElementById('btn-import'),
-            previewVideo: document.getElementById('preview-video'),
-            stockCanvas: document.getElementById('stock-canvas'),
-            audioViz: document.getElementById('audio-viz'),
-            previewAudio: document.getElementById('preview-audio'),
-            btnPlay: document.getElementById('btn-play'),
-            timeDisplay: document.getElementById('time-display'),
-            tracksContainer: document.getElementById('tracks-container'),
-            videoTrack: document.getElementById('video-track'),
-            audioTrack: document.getElementById('audio-track'),
-            rulerTicks: document.getElementById('ruler-ticks'),
-            playhead: document.getElementById('playhead'),
-            btnDelete: document.getElementById('btn-delete')
-        };
+  if (!prompt) {
+    status.textContent = "Enter a prompt first.";
+    return;
+  }
 
-        const ctx = DOM.stockCanvas.getContext('2d');
-        const vizCtx = DOM.audioViz.getContext('2d');
+  status.textContent = "Generating JSON (Bonsai 300 t/s)…";
 
-        const generateId = (prefix) => `${prefix}_${AppState.nextId++}`;
-        const formatTime = (sec) => {
-            const m = Math.floor(sec / 60).toString().padStart(2, '0');
-            const s = Math.floor(sec % 60).toString().padStart(2, '0');
-            const ms = Math.floor((sec % 1) * 10).toString();
-            return `${m}:${s}.${ms}`;
-        };
+  const res = await fetch(BONSAI_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: [prompt] })
+  });
 
-        // --- Audio Synthesis Engine ---
-        function initAudio() {
-            if (!AppState.audioCtx) {
-                AppState.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (AppState.audioCtx.state === 'suspended') {
-                AppState.audioCtx.resume();
-            }
-        }
+  const data = await res.json();
 
-        function playSynthNote(freq, type, duration, volume = 0.1) {
-            if (!AppState.audioCtx) return;
-            const osc = AppState.audioCtx.createOscillator();
-            const gain = AppState.audioCtx.createGain();
-            
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, AppState.audioCtx.currentTime);
-            
-            gain.gain.setValueAtTime(volume, AppState.audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, AppState.audioCtx.currentTime + duration);
-            
-            osc.connect(gain);
-            gain.connect(AppState.audioCtx.destination);
-            
-            osc.start();
-            osc.stop(AppState.audioCtx.currentTime + duration);
-        }
+  // Correct field:
+  const bonsaiJSON = data.data[0].bonsai;
 
-        const SoundGens = {
-            lofi: (t) => {
-                const beat = Math.floor(t * 2) % 8; 
-                const subBeat = (t * 2) % 1;
-                if (subBeat < 0.05) {
-                    if (beat === 0 || beat === 4) playSynthNote(60, 'sine', 0.5, 0.2); 
-                    if (beat === 2 || beat === 6) playSynthNote(200, 'square', 0.1, 0.05); 
-                    if (beat % 1 === 0) playSynthNote(800, 'triangle', 0.05, 0.02); 
-                }
-            },
-            bass: (t) => {
-                const subBeat = (t * 1) % 1;
-                if (subBeat < 0.05) {
-                    const notes = [40, 45, 35, 30];
-                    const note = notes[Math.floor(t % 4)];
-                    playSynthNote(note, 'triangle', 0.8, 0.3);
-                }
-            }
-        };
+  status.textContent = "Rendering animation…";
 
-        // --- Visual Generators ---
-        const Visualizers = {
-            neon_grid: (t) => {
-                ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, 1280, 720);
-                ctx.strokeStyle = '#00f2ff'; ctx.lineWidth = 2;
-                const offset = (t * 50) % 40;
-                for(let y = offset; y < 720; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1280, y); ctx.stroke(); }
-                for(let x = 0; x < 1280; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 720); ctx.stroke(); }
-            },
-            stars: (t) => {
-                ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1280, 720);
-                for(let i=0; i<100; i++) {
-                    const x = (Math.sin(i) * 0.5 + 0.5) * 1280;
-                    const y = (Math.cos(i * 1.2) * 0.5 + 0.5) * 720;
-                    const size = Math.abs(Math.sin(t + i)) * 3;
-                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
-                }
-            },
-            matrix: (t) => {
-                ctx.fillStyle = 'rgba(0, 5, 0, 0.2)'; ctx.fillRect(0,0,1280,720);
-                ctx.fillStyle = '#0f0'; ctx.font = '20px monospace';
-                for(let x=0; x<1280; x+=25) {
-                    const y = (t * 200 + (Math.sin(x)*1000)) % 800;
-                    ctx.fillText(String.fromCharCode(0x30A0 + Math.random() * 96), x, y);
-                }
-            }
-        };
+  // Load Bonsai renderer
+  const script = document.createElement("script");
+  script.src = "https://prism-ml.github.io/bonsai/bonsai.js";
+  script.onload = () => {
+    const canvas = document.getElementById("canvas");
+    const engine = new Bonsai.Engine(canvas);
+    engine.load(bonsaiJSON);
+    engine.play();
+    status.textContent = "Done.";
+  };
+  document.body.appendChild(script);
+}
+</script>
 
-        const STOCK_ASSETS = [
-            { name: "Neon Grid", type: "stock", vidKey: "neon_grid", color: "#00f2ff", icon: "🌐", duration: 30 },
-            { name: "Starfield", type: "stock", vidKey: "stars", color: "#ffffff", icon: "✨", duration: 30 },
-            { name: "Matrix Code", type: "stock", vidKey: "matrix", color: "#00ff00", icon: "💾", duration: 30 },
-            { name: "Lofi Beat", type: "audio", soundKey: "lofi", color: "#ff7eb9", icon: "🎹", duration: 60 },
-            { name: "Deep Bass", type: "audio", soundKey: "bass", color: "#7afcff", icon: "🎸", duration: 60 }
-        ];
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.assets-container').forEach(c => c.style.display = 'none');
-            event.currentTarget.classList.add('active');
-            document.getElementById(`tab-${tab}`).style.display = 'block';
-        }
-
-        function initStockLibrary() {
-            DOM.stockAssetsList.innerHTML = '';
-            STOCK_ASSETS.forEach(item => {
-                const id = generateId('stock');
-                const asset = { ...item, id };
-                AppState.assets.push(asset);
-                const el = document.createElement('div');
-                el.className = 'asset-item';
-                el.innerHTML = `<div class="asset-thumb ${item.vidKey ? 'anim-grid' : ''}" style="background-color: ${item.color || '#333'}">${item.icon}</div>
-                                <div class="asset-info"><div class="asset-name">${item.name}</div><div class="asset-meta">${item.type.toUpperCase()}</div></div>`;
-                el.onclick = () => addClipToTimeline(asset);
-                DOM.stockAssetsList.appendChild(el);
-            });
-        }
-
-        DOM.btnImport.onclick = () => DOM.fileInput.click();
-        DOM.fileInput.onchange = async (e) => {
-            for (const file of Array.from(e.target.files)) {
-                const url = URL.createObjectURL(file);
-                const isVideo = file.type.startsWith('video/');
-                AppState.assets.push({ id: generateId('user'), name: file.name, type: isVideo ? 'video' : 'audio', url, duration: 30 });
-            }
-            renderUserAssets();
-        };
-
-        function renderUserAssets() {
-            DOM.userAssetsList.innerHTML = '';
-            AppState.assets.filter(a => a.id.startsWith('user')).forEach(asset => {
-                const el = document.createElement('div');
-                el.className = 'asset-item'; el.style.flexDirection = 'row';
-                el.innerHTML = `<div style="width:30px">${asset.type === 'video' ? '🎥' : '🎵'}</div><div class="asset-name">${asset.name}</div>`;
-                el.onclick = () => addClipToTimeline(asset);
-                DOM.userAssetsList.appendChild(el);
-            });
-        }
-
-        function addClipToTimeline(asset) {
-            const clip = { id: generateId('clip'), assetId: asset.id, type: asset.type, startTime: AppState.currentTime, duration: 10, startOffset: 0 };
-            AppState.clips.push(clip);
-            renderTimeline();
-        }
-
-        function renderTimeline() {
-            DOM.videoTrack.innerHTML = ''; DOM.audioTrack.innerHTML = '';
-            AppState.clips.forEach(clip => {
-                const asset = AppState.assets.find(a => a.id === clip.assetId);
-                const el = document.createElement('div');
-                el.className = `clip ${asset.type === 'stock' ? 'stock' : clip.type} ${AppState.selectedClipId === clip.id ? 'selected' : ''}`;
-                el.style.left = `${clip.startTime * AppState.pixelsPerSecond}px`;
-                el.style.width = `${clip.duration * AppState.pixelsPerSecond}px`;
-                el.innerHTML = `<span class="clip-label">${asset.name}</span>`;
-                el.onmousedown = (e) => {
-                    AppState.selectedClipId = clip.id; DOM.btnDelete.disabled = false;
-                    renderTimeline(); initDrag(e, clip);
-                };
-                (clip.type === 'audio' ? DOM.audioTrack : DOM.videoTrack).appendChild(el);
-            });
-            updatePlayheadUI();
-        }
-
-        function initDrag(e, clip) {
-            const startX = e.clientX; const startT = clip.startTime;
-            const onMove = (me) => { clip.startTime = Math.max(0, startT + (me.clientX - startX) / AppState.pixelsPerSecond); renderTimeline(); };
-            const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-            window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-        }
-
-        DOM.btnDelete.onclick = () => {
-            AppState.clips = AppState.clips.filter(c => c.id !== AppState.selectedClipId);
-            AppState.selectedClipId = null; DOM.btnDelete.disabled = true; renderTimeline();
-        };
-
-        DOM.tracksContainer.onmousedown = (e) => {
-            if (e.target === DOM.tracksContainer || e.target.classList.contains('track')) {
-                const rect = DOM.tracksContainer.getBoundingClientRect();
-                AppState.currentTime = (e.clientX - rect.left + DOM.tracksContainer.scrollLeft) / AppState.pixelsPerSecond;
-                updatePlayheadUI();
-            }
-        };
-
-        function loop() {
-            if (AppState.playing) {
-                AppState.currentTime += 1/60;
-                updatePlayheadUI();
-            }
-            
-            const t = AppState.currentTime;
-            
-            const activeVideo = AppState.clips.find(c => c.type !== 'audio' && t >= c.startTime && t < (c.startTime + c.duration));
-            if (activeVideo) {
-                const asset = AppState.assets.find(a => a.id === activeVideo.assetId);
-                if (asset.type === 'stock') {
-                    DOM.previewVideo.style.display = 'none'; DOM.stockCanvas.style.display = 'block';
-                    DOM.stockCanvas.width = 1280; DOM.stockCanvas.height = 720;
-                    Visualizers[asset.vidKey](t - activeVideo.startTime);
-                } else {
-                    DOM.stockCanvas.style.display = 'none'; DOM.previewVideo.style.display = 'block';
-                    if (DOM.previewVideo.src !== asset.url) DOM.previewVideo.src = asset.url;
-                    DOM.previewVideo.currentTime = (t - activeVideo.startTime);
-                }
-            } else {
-                DOM.previewVideo.style.display = 'none'; DOM.stockCanvas.style.display = 'none';
-            }
-
-            const activeAudios = AppState.clips.filter(c => c.type === 'audio' && t >= c.startTime && t < (c.startTime + c.duration));
-            vizCtx.clearRect(0,0, DOM.audioViz.width, DOM.audioViz.height);
-            
-            if (activeAudios.length > 0 && AppState.playing) {
-                activeAudios.forEach(clip => {
-                    const asset = AppState.assets.find(a => a.id === clip.assetId);
-                    if (asset.soundKey) SoundGens[asset.soundKey](t - clip.startTime);
-                });
-                
-                vizCtx.fillStyle = '#00f2ff';
-                for(let i=0; i<30; i++) {
-                    const h = Math.random() * 40 + 10;
-                    vizCtx.fillRect(i * 15, 60 - h, 10, h);
-                }
-            }
-            
-            requestAnimationFrame(loop);
-        }
-
-        DOM.btnPlay.onclick = () => {
-            initAudio();
-            AppState.playing = !AppState.playing;
-            DOM.btnPlay.innerText = AppState.playing ? '⏸ Pause' : '▶ Play';
-            if (!AppState.playing) {
-                DOM.previewVideo.pause();
-            } else {
-                DOM.previewVideo.play().catch(()=>{});
-            }
-        };
-
-        function updatePlayheadUI() {
-            DOM.playhead.style.left = `${AppState.currentTime * AppState.pixelsPerSecond}px`;
-            DOM.timeDisplay.innerText = `${formatTime(AppState.currentTime)} / 05:00.0`;
-        }
-
-        initStockLibrary();
-        loop();
-    </script>
 </body>
 </html>
