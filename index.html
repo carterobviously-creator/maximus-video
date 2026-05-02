@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Maximus Video — Bonsai</title>
+<title>Maximus Video — Offline Generator</title>
 <style>
   body {
     margin: 0;
@@ -36,13 +36,13 @@
 
   textarea {
     width: 100%;
-    height: 120px;
+    height: 80px;
     background: #0f0f15;
     border: 1px solid #222;
     border-radius: 10px;
-    padding: 12px;
+    padding: 10px;
     color: #eee;
-    font-size: 14px;
+    font-size: 13px;
     resize: vertical;
   }
 
@@ -75,60 +75,127 @@
     width: 100%;
     height: 512px;
   }
+
+  a.download {
+    display: block;
+    margin-top: 10px;
+    color: #4f6bff;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
 
 <div class="container">
   <div class="title">Maximus Video</div>
-  <div class="subtitle">Bonsai WebGPU Animation Engine</div>
+  <div class="subtitle">Offline procedural video generator (unlimited)</div>
 
-  <textarea id="prompt" placeholder="Describe your scene..."></textarea>
-  <button onclick="generate()">Generate</button>
+  <textarea id="prompt" placeholder="Optional: type anything, used as a seed for the animation..."></textarea>
+  <button onclick="generate()">Generate 5s clip</button>
 
-  <div class="status" id="status">Waiting…</div>
+  <div class="status" id="status">Idle.</div>
 
   <canvas id="canvas" width="512" height="512"></canvas>
+  <a id="download" class="download" style="display:none;" download="maximus-video.webm">Download video</a>
 </div>
 
 <script>
-const BONSAI_API = "https://prism-ml-bonsai-demo.hf.space/run/text_to_bonsai";
+// Simple hash to turn prompt into a seed
+function hashString(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// Seeded RNG
+function makeRNG(seed) {
+  return function() {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
+  };
+}
 
 async function generate() {
-  const prompt = document.getElementById("prompt").value.trim();
   const status = document.getElementById("status");
+  const dl = document.getElementById("download");
+  dl.style.display = "none";
 
-  if (!prompt) {
-    status.textContent = "Enter a prompt first.";
-    return;
-  }
+  const prompt = document.getElementById("prompt").value.trim();
+  const seed = hashString(prompt || String(Math.random()));
+  const rand = makeRNG(seed);
 
-  status.textContent = "Generating JSON (Bonsai 300 t/s)…";
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
 
-  const res = await fetch(BONSAI_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: [prompt] })
+  const fps = 24;
+  const durationSec = 5;
+  const totalFrames = fps * durationSec;
+
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+  const chunks = [];
+
+  recorder.ondataavailable = e => {
+    if (e.data.size > 0) chunks.push(e.data);
+  };
+
+  const done = new Promise(resolve => {
+    recorder.onstop = () => resolve();
   });
 
-  const data = await res.json();
+  recorder.start();
+  status.textContent = "Rendering frames…";
 
-  // Correct field:
-  const bonsaiJSON = data.data[0].bonsai;
+  for (let frame = 0; frame < totalFrames; frame++) {
+    const t = frame / totalFrames;
 
-  status.textContent = "Rendering animation…";
+    // Background
+    ctx.fillStyle = "#05050a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Load Bonsai renderer
-  const script = document.createElement("script");
-  script.src = "https://prism-ml.github.io/bonsai/bonsai.js";
-  script.onload = () => {
-    const canvas = document.getElementById("canvas");
-    const engine = new Bonsai.Engine(canvas);
-    engine.load(bonsaiJSON);
-    engine.play();
-    status.textContent = "Done.";
-  };
-  document.body.appendChild(script);
+    // Use prompt seed to pick a palette
+    const hueBase = Math.floor(rand() * 360);
+    const shapes = 40;
+
+    for (let i = 0; i < shapes; i++) {
+      const p = i / shapes;
+      const x = canvas.width * (rand() + 0.5 * Math.sin(2 * Math.PI * (t + p)));
+      const y = canvas.height * (rand() + 0.5 * Math.cos(2 * Math.PI * (t * 1.3 + p)));
+
+      const size = 10 + 60 * rand();
+      const hue = (hueBase + 80 * p + 120 * t) % 360;
+      const alpha = 0.2 + 0.6 * rand();
+
+      ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(x % canvas.width, y % canvas.height, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Simple "camera shake" / zoom
+    ctx.save();
+    const zoom = 1 + 0.05 * Math.sin(2 * Math.PI * t);
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    ctx.restore();
+
+    await new Promise(r => setTimeout(r, 1000 / fps));
+  }
+
+  recorder.stop();
+  await done;
+
+  const blob = new Blob(chunks, { type: "video/webm" });
+  const url = URL.createObjectURL(blob);
+  dl.href = url;
+  dl.style.display = "block";
+  status.textContent = "Done. Download ready.";
 }
 </script>
 
